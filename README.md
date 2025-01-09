@@ -29,7 +29,7 @@ However, this paper involves multiple components that cannot be replicated or fu
 
 ## Block Diagram
 
-![CollaborativeMapping](CollaborativeMapping.png)
+![CollaborativeMapping](/idea/CollaborativeMapping.png)
 
 ## Tasks
 - ROS Setup for Quadruped (porting packages/wrappers written by previous cohorts to ROS2 Jazzy)
