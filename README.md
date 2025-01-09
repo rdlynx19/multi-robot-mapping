@@ -1,7 +1,3 @@
----
-title: Collaborative Mapping using UAV and Quadruped
-
----
 
 # Collaborative Mapping using UAV and Quadruped
 Author: Pushkar Dave
@@ -48,3 +44,36 @@ However, this paper involves multiple components that cannot be replicated or fu
 (Time Frame: 4 days)
 - Integrating/Writing ROS Node/Package to merge map data obtained from RTAB Map
 (Time Frame: 2 Weeks)
+- PX4 based Offboard Control to autonomously explore the environment using the quadrotor
+    - Waypoint based exploration for quadrotor and quadruped(assuming known bounds of the map)
+(Time Frame: 1.5 Weeks)
+- Simultaenous mapping, where quadrotor and quadruped add data to the global map in real-time together
+(Time Frame: 2 Weeks)
+
+
+## Risks, Challenges and Uncertainities
+**Highest Risk**: Integrating RTAB Map to run on the quadrotor
+
+**Least Sure**: Map merging using RTAB Map output data (Occupancy Grid/ OctoMap)
+
+**Resolutions**: There is a ROS1 Example by the RTAB Map authors on RTAB Mapping using quadrotors. The forum is also active and responds to the questions quickly. There is an inbuilt map merging algorithm in RTAB Map- extending it to merge data using two different robots or finding other packages that can do this is the current objective. 
+
+## Tools and References
+**Hardware**:
+- Holybro QAV 250 Quadrotor Kit (available - ordered last quarter)
+- Spare motors, propellers and battery for quadrotor (to be ordered)
+- Unitree GO 1/2 Quadruped (available in the lab)
+- Taranis QX7 RC Transmitter for Quadrotor (available in the lab)
+- OptiTrack System (available in the lab)
+- 2 x Raspberry Pi 5 (to be ordered)
+- 2 x RGB-D Cameras (to be ordered)
+
+**Software**:
+- ROS2 (https://docs.ros.org/en/jazzy/index.html)
+- RTAB Map ROS2 Jazzy (https://index.ros.org/r/rtabmap_ros/#jazzy)
+- PX4 Autopilot (https://docs.px4.io/main/en/)
+- C++ (https://devdocs.io/cpp/)
+
+**References**:
+- RTAB Map Drone example (https://github.com/matlabbe/rtabmap_drone_example)
+- Indoor flight using OptiTrack (https://github.com/Arcane-01/Indoor-Flight)

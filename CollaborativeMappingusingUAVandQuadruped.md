@@ -1,7 +1,3 @@
----
-title: Collaborative Mapping using UAV and Quadruped
-
----
 
 # Collaborative Mapping using UAV and Quadruped
 Author: Pushkar Dave
