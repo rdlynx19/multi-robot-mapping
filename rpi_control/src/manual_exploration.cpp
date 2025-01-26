@@ -1,6 +1,8 @@
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
+#include <px4_msgs/msg/vehicle_odometry.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
 
@@ -19,6 +21,9 @@ class ManualExploration : public rclcpp::Node
 		offboard_control_mode_publisher = this->create_publisher<OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
 		trajectory_setpoint_publisher = this->create_publisher<TrajectorySetpoint>("/fmu/in/trajectory_setpoint", 10);
 		vehicle_command_publisher = this->create_publisher<VehicleCommand>("/fmu/in/vehicle_command", 10);
+		visual_odometry_publisher = this->create_publisher<VehicleOdometry>("/fmu/in/vehicle_visual_odometry", 10);
+
+		optitrack_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/quad_pose", 10, std::bind(&ManualExploration::quad_pose_callback, this, std::placeholders::_1));
 
 		offboard_setpoint_counter = 0;
 
@@ -51,13 +56,17 @@ class ManualExploration : public rclcpp::Node
 		rclcpp::Publisher<OffboardControlMode>::SharedPtr offboard_control_mode_publisher;
 		rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_publisher;
 		rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher;
+		rclcpp::Publisher<VehicleOdometry>::SharedPtr visual_odometry_publisher;
+
+		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr optitrack_pose_subscriber;
 
 		//common synced timestamped
 		std::atomic<uint64_t> timestamp;
 
 		//counter for the number of setpoints
 		uint64_t offboard_setpoint_counter;
-	
+
+		void quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const;
 		void publish_offboard_control_mode();
 		void publish_trajectory_setpoint();
 		void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0);	
@@ -77,13 +86,38 @@ void ManualExploration::disarm()
 	RCLCPP_INFO(this->get_logger(), "Disarm command send");	
 }
 
+void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const
+{
+	RCLCPP_INFO_ONCE(this->get_logger(), "Received first message from OptiTrack!");
+	RCLCPP_INFO_ONCE(this->get_logger(), "Pos: %f, %f, %f", pose_msg->pose.position.x, pose_msg->pose.position.y, pose_msg->pose.position.z);
+	RCLCPP_INFO_ONCE(this->get_logger(), "Quat: %f, %f, %f, %f", pose_msg->pose.orientation.x, pose_msg->pose.orientation.y, pose_msg->pose.orientation.w, pose_msg->pose.orientation.w);
+	
+	VehicleOdometry msg{};
+	msg.pose_frame = msg.POSE_FRAME_FRD;
+	msg.timestamp = uint64_t(pose_msg->header.stamp.sec)*1000000 + uint64_t(pose_msg->header.stamp.nanosec)/1000;
+	msg.timestamp_sample = msg.timestamp;
+
+	msg.position[0] = pose_msg->pose.position.x;
+	msg.position[1] = pose_msg->pose.position.y;
+	msg.position[2] = pose_msg->pose.position.z;
+
+	msg.q[0] = pose_msg->pose.orientation.w;
+	msg.q[1] = pose_msg->pose.orientation.x;
+	msg.q[2] = pose_msg->pose.orientation.y;
+	msg.q[3] = pose_msg->pose.orientation.z;
+
+	visual_odometry_publisher->publish(msg);
+	RCLCPP_INFO_ONCE(this->get_logger(), "Message sent to PX4");
+}
+
+
 void ManualExploration::publish_offboard_control_mode()
 {
 	OffboardControlMode msg{};
-	msg.position = true;
+	msg.position = false;
 	msg.velocity = false;
 	msg.acceleration = false;
-	msg.attitude = false;
+	msg.attitude = true;
 	msg.body_rate = false;
 	msg.timestamp = this->get_clock()->now().nanoseconds()/1000;
 	offboard_control_mode_publisher->publish(msg);
@@ -123,19 +157,4 @@ int main(int argc, char* argv[])
 	rclcpp::shutdown();
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

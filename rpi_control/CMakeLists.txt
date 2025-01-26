@@ -7,15 +7,27 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
+ament_python_install_package(${PROJECT_NAME})
 
 add_executable(manual_setpoints src/manual_exploration.cpp)
-ament_target_dependencies(manual_setpoints rclcpp px4_msgs)
+ament_target_dependencies(manual_setpoints rclcpp px4_msgs geometry_msgs)
 
+install(TARGETS
+	manual_setpoints
+	DESTINATION lib/${PROJECT_NAME})
+
+install(PROGRAMS
+	scripts/UdpListener.py
+	DESTINATION lib/${PROJECT_NAME})
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
