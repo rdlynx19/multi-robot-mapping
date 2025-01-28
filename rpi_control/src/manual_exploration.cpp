@@ -2,6 +2,7 @@
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_odometry.hpp>
+#include <px4_msgs/msg/vehicle_status.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
@@ -23,7 +24,12 @@ class ManualExploration : public rclcpp::Node
 		vehicle_command_publisher = this->create_publisher<VehicleCommand>("/fmu/in/vehicle_command", 10);
 		visual_odometry_publisher = this->create_publisher<VehicleOdometry>("/fmu/in/vehicle_visual_odometry", 10);
 
-		optitrack_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/quad_pose", 10, std::bind(&ManualExploration::quad_pose_callback, this, std::placeholders::_1));
+		//setting compatible qos profile for subscribers
+		rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
+		auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
+
+		optitrack_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/quad_pose", qos, std::bind(&ManualExploration::quad_pose_callback, this, std::placeholders::_1));
+		vehicle_status_subscriber = this->create_subscription<VehicleStatus>("/fmu/out/vehicle_status", qos, std::bind(&ManualExploration::vehicle_status_callback, this, std::placeholders::_1));
 
 		offboard_setpoint_counter = 0;
 
@@ -59,6 +65,7 @@ class ManualExploration : public rclcpp::Node
 		rclcpp::Publisher<VehicleOdometry>::SharedPtr visual_odometry_publisher;
 
 		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr optitrack_pose_subscriber;
+		rclcpp::Subscription<VehicleStatus>::SharedPtr vehicle_status_subscriber;
 
 		//common synced timestamped
 		std::atomic<uint64_t> timestamp;
@@ -67,6 +74,8 @@ class ManualExploration : public rclcpp::Node
 		uint64_t offboard_setpoint_counter;
 
 		void quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const;
+		void vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const;
+
 		void publish_offboard_control_mode();
 		void publish_trajectory_setpoint();
 		void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0);	
@@ -110,6 +119,12 @@ void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped
 	RCLCPP_INFO_ONCE(this->get_logger(), "Message sent to PX4");
 }
 
+void ManualExploration::vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const 
+{
+	std::cout << "NAV_STATUS: " << static_cast<int>(status_msg->nav_state) << std::endl; 								// currently active mode
+	std::cout << "OFFB_STATUS: " << static_cast<int> (VehicleStatus::NAVIGATION_STATE_OFFBOARD) << std::endl; 			
+	std::cout << "ARM_STATUS: " << static_cast<int>(status_msg->arming_state) << std::endl; 							// Disarmed = 1, Armed = 2
+}
 
 void ManualExploration::publish_offboard_control_mode()
 {
