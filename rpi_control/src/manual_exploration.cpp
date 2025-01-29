@@ -7,6 +7,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
 
+#include "rpi_interfaces/srv/arming_control.hpp"
+
+
 #include <chrono>
 #include <iostream>
 
@@ -19,6 +22,7 @@ class ManualExploration : public rclcpp::Node
 	public:
 		ManualExploration(): Node("manual_setpoints")
 	{
+		//Publishers
 		offboard_control_mode_publisher = this->create_publisher<OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
 		trajectory_setpoint_publisher = this->create_publisher<TrajectorySetpoint>("/fmu/in/trajectory_setpoint", 10);
 		vehicle_command_publisher = this->create_publisher<VehicleCommand>("/fmu/in/vehicle_command", 10);
@@ -28,8 +32,12 @@ class ManualExploration : public rclcpp::Node
 		rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
 		auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
+		//Subscribers
 		optitrack_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/quad_pose", qos, std::bind(&ManualExploration::quad_pose_callback, this, std::placeholders::_1));
 		vehicle_status_subscriber = this->create_subscription<VehicleStatus>("/fmu/out/vehicle_status", qos, std::bind(&ManualExploration::vehicle_status_callback, this, std::placeholders::_1));
+
+		//Services
+		arming_control_service = this->create_service<rpi_interfaces::srv::ArmingControl>("arming_control", std::bind(&ManualExploration::arming_service_callback, this, std::placeholders::_1, std::placeholders::_2), rclcpp::ServicesQoS(), this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive));
 
 		offboard_setpoint_counter = 0;
 
@@ -39,7 +47,7 @@ class ManualExploration : public rclcpp::Node
 				this->publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
 				
 				//Arm the quadrotor
-				this->arm();
+				// this->arm(); //added service to do this
 			}
 			publish_offboard_control_mode();
 			//publish_trajectory_setpoint();
@@ -59,13 +67,18 @@ class ManualExploration : public rclcpp::Node
 	private:
 		rclcpp::TimerBase::SharedPtr timer;
 
+		//Publishers
 		rclcpp::Publisher<OffboardControlMode>::SharedPtr offboard_control_mode_publisher;
 		rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_publisher;
 		rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher;
 		rclcpp::Publisher<VehicleOdometry>::SharedPtr visual_odometry_publisher;
 
+		//Subscribers
 		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr optitrack_pose_subscriber;
 		rclcpp::Subscription<VehicleStatus>::SharedPtr vehicle_status_subscriber;
+
+		//Services
+		rclcpp::Service<rpi_interfaces::srv::ArmingControl>::SharedPtr arming_control_service;
 
 		//common synced timestamped
 		std::atomic<uint64_t> timestamp;
@@ -75,6 +88,7 @@ class ManualExploration : public rclcpp::Node
 
 		void quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const;
 		void vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const;
+		void arming_service_callback(const std::shared_ptr<rpi_interfaces::srv::ArmingControl::Request> arm_disarm_request, std::shared_ptr<rpi_interfaces::srv::ArmingControl::Response> arm_disarm_response);
 
 		void publish_offboard_control_mode();
 		void publish_trajectory_setpoint();
@@ -126,6 +140,24 @@ void ManualExploration::vehicle_status_callback(const VehicleStatus::SharedPtr s
 	std::cout << "ARM_STATUS: " << static_cast<int>(status_msg->arming_state) << std::endl; 							// Disarmed = 1, Armed = 2
 }
 
+void ManualExploration::arming_service_callback(const std::shared_ptr<rpi_interfaces::srv::ArmingControl::Request> arm_disarm_request, std::shared_ptr<rpi_interfaces::srv::ArmingControl::Response> arm_disarm_response)
+{
+	if (arm_disarm_request->flight_request == "arm")
+	{
+		arm();
+		arm_disarm_response->response = "UAV armed!";
+	}
+	else if(arm_disarm_request->flight_request == "disarm")
+	{
+		disarm();
+		arm_disarm_response->response = "UAV disarmed!";
+	}
+	else 
+	{
+		arm_disarm_response->response = "Invalid request! Check the code again!";
+	}
+}
+
 void ManualExploration::publish_offboard_control_mode()
 {
 	OffboardControlMode msg{};
@@ -141,8 +173,8 @@ void ManualExploration::publish_offboard_control_mode()
 void ManualExploration::publish_trajectory_setpoint()
 {
 	TrajectorySetpoint msg{};
-	msg.position = {0.0, 0.0, -5.0};
-	msg.yaw = -3.14; // (-pi, pi)
+	msg.position = {0.0, 0.0, -0.05};
+	msg.yaw = 0; // (-pi, pi)
 	msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 	trajectory_setpoint_publisher->publish(msg);
 }
