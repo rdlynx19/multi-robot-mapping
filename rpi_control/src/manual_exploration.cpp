@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "rpi_interfaces/srv/arming_control.hpp"
+#include "rpi_interfaces/srv/takeoff.hpp"
 
 
 #include <chrono>
@@ -38,6 +39,7 @@ class ManualExploration : public rclcpp::Node
 
 		//Services
 		arming_control_service = this->create_service<rpi_interfaces::srv::ArmingControl>("arming_control", std::bind(&ManualExploration::arming_service_callback, this, std::placeholders::_1, std::placeholders::_2), rclcpp::ServicesQoS(), this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive));
+		takeoff_control_service = this->create_service<rpi_interfaces::srv::Takeoff>("takeoff", std::bind(&ManualExploration::takeoff_service_callback, this, std::placeholders::_1, std::placeholders::_2), rclcpp::ServicesQoS(), this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive));
 
 		offboard_setpoint_counter = 0;
 
@@ -79,6 +81,7 @@ class ManualExploration : public rclcpp::Node
 
 		//Services
 		rclcpp::Service<rpi_interfaces::srv::ArmingControl>::SharedPtr arming_control_service;
+		rclcpp::Service<rpi_interfaces::srv::Takeoff>::SharedPtr takeoff_control_service;
 
 		//common synced timestamped
 		std::atomic<uint64_t> timestamp;
@@ -89,10 +92,12 @@ class ManualExploration : public rclcpp::Node
 		void quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const;
 		void vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const;
 		void arming_service_callback(const std::shared_ptr<rpi_interfaces::srv::ArmingControl::Request> arm_disarm_request, std::shared_ptr<rpi_interfaces::srv::ArmingControl::Response> arm_disarm_response);
+		void takeoff_service_callback(const std::shared_ptr<rpi_interfaces::srv::Takeoff::Request> takeoff_request, std::shared_ptr<rpi_interfaces::srv::Takeoff::Response> takeoff_response);
+
 
 		void publish_offboard_control_mode();
 		void publish_trajectory_setpoint();
-		void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0);	
+		void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0, float param3 = 0.0);	
 };
 
 void ManualExploration::arm()
@@ -158,6 +163,16 @@ void ManualExploration::arming_service_callback(const std::shared_ptr<rpi_interf
 	}
 }
 
+void ManualExploration::takeoff_service_callback(const std::shared_ptr<rpi_interfaces::srv::Takeoff::Request> takeoff_request, std::shared_ptr<rpi_interfaces::srv::Takeoff::Response> takeoff_response)
+{
+	if(takeoff_request->trigger_takeoff == true){
+		publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 4, 2);
+
+		takeoff_response->response = true;
+	}
+	
+}
+
 void ManualExploration::publish_offboard_control_mode()
 {
 	OffboardControlMode msg{};
@@ -179,11 +194,12 @@ void ManualExploration::publish_trajectory_setpoint()
 	trajectory_setpoint_publisher->publish(msg);
 }
 
-void ManualExploration::publish_vehicle_command(uint16_t command, float param1, float param2)
+void ManualExploration::publish_vehicle_command(uint16_t command, float param1, float param2, float param3)
 {
 	VehicleCommand msg{};
 	msg.param1 = param1;
 	msg.param2 = param2;
+	msg.param3 = param3;
 	msg.command = command;
 	msg.target_system = 1;
 	msg.target_component = 1;
