@@ -16,6 +16,7 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ArmingControl.srv"
   "srv/Takeoff.srv"
+  "srv/Land.srv"
   DEPENDENCIES std_msgs
 )
 
