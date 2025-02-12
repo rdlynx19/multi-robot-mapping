@@ -170,6 +170,8 @@ void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped
 	mocap_tf.transform.rotation.w = msg.q[3];
 
 	mocap_broadcaster->sendTransform(mocap_tf);
+
+	RCLCPP_INFO(this->get_logger(), "The mocap z coordinate is: %f", msg.position[2]);
 }
 
 void ManualExploration::vehicle_pose_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr pose_msg) const
@@ -190,6 +192,8 @@ void ManualExploration::vehicle_pose_callback(const px4_msgs::msg::VehicleOdomet
 	px4_tf.transform.rotation.w = pose_msg->q[3];
 
 	px4_broadcaster->sendTransform(px4_tf);
+
+	RCLCPP_INFO(this->get_logger(), "The PX4 z coordinate is!!!: %f", pose_msg->position[2]);
 }
 
 void ManualExploration::vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const 
