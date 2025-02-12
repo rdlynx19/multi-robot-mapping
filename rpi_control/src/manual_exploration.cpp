@@ -27,6 +27,9 @@ class ManualExploration : public rclcpp::Node
 	public:
 		ManualExploration(): Node("manual_setpoints")
 	{
+		mocap_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+    		px4_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+
 		//Publishers
 		offboard_control_mode_publisher = this->create_publisher<OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
 		trajectory_setpoint_publisher = this->create_publisher<TrajectorySetpoint>("/fmu/in/trajectory_setpoint", 10);
@@ -171,7 +174,7 @@ void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped
 
 	mocap_broadcaster->sendTransform(mocap_tf);
 
-	RCLCPP_INFO(this->get_logger(), "The mocap z coordinate is: %f", msg.position[2]);
+//	RCLCPP_INFO(this->get_logger(), "The mocap z coordinate is: %f", msg.position[2]);
 }
 
 void ManualExploration::vehicle_pose_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr pose_msg) const
@@ -193,7 +196,7 @@ void ManualExploration::vehicle_pose_callback(const px4_msgs::msg::VehicleOdomet
 
 	px4_broadcaster->sendTransform(px4_tf);
 
-	RCLCPP_INFO(this->get_logger(), "The PX4 z coordinate is!!!: %f", pose_msg->position[2]);
+//	RCLCPP_INFO(this->get_logger(), "The PX4 z coordinate is!!!: %f", pose_msg->position[2]);
 }
 
 void ManualExploration::vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const 
