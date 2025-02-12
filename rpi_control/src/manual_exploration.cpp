@@ -22,13 +22,20 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 using namespace px4_msgs::msg;
 
+enum class DroneState {
+	DISARMED,
+	ARMED,
+	TRAJECTORY,
+	LAND
+};
+
 class ManualExploration : public rclcpp::Node
 {
 	public:
 		ManualExploration(): Node("manual_setpoints")
 	{
 		mocap_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
-    		px4_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+    	px4_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
 		//Publishers
 		offboard_control_mode_publisher = this->create_publisher<OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
@@ -64,7 +71,7 @@ class ManualExploration : public rclcpp::Node
 //				 this->arm(); //added service to do this
 			}
 			publish_offboard_control_mode();
-			publish_trajectory_setpoint();
+			publish_trajectory_setpoint(current_state);
 			
 
 			//stop the count after reaching 11
@@ -101,13 +108,17 @@ class ManualExploration : public rclcpp::Node
 		std::unique_ptr<tf2_ros::TransformBroadcaster> mocap_broadcaster;
 		std::unique_ptr<tf2_ros::TransformBroadcaster> px4_broadcaster;
 
+		//Helper Variables
+		geometry_msgs::msg::PoseStamped::UniquePtr home_pose_msg;
+		bool home_pose_flag = true;
+		DroneState current_state = DroneState::DISARMED;
 		//common synced timestamped
 		std::atomic<uint64_t> timestamp;
 
 		//counter for the number of setpoints
 		uint64_t offboard_setpoint_counter;
 
-		void quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const;
+		void quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg);
 		void vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const;
 		void vehicle_pose_callback(const VehicleOdometry::SharedPtr pose_msg) const;
 		void arming_service_callback(const std::shared_ptr<rpi_interfaces::srv::ArmingControl::Request> arm_disarm_request, std::shared_ptr<rpi_interfaces::srv::ArmingControl::Response> arm_disarm_response);
@@ -116,30 +127,49 @@ class ManualExploration : public rclcpp::Node
 
 
 		void publish_offboard_control_mode();
-		void publish_trajectory_setpoint();
-		void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0, float param3 = 0.0);	
+		void publish_trajectory_setpoint(DroneState state = DroneState::DISARMED, float x_position = 0.0, float y_position = 0.0, float z_position = -0.3, float yaw = 0.0);
+		void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0, float param3 = 0.0);
+		void transitionTo(DroneState new_state);	
 };
+
+void ManualExploration::transitionTo(DroneState new_state)
+{
+    RCLCPP_INFO(this->get_logger(), "Transitioning to new state: %d", static_cast<int>(new_state));
+    current_state = new_state;
+}
 
 void ManualExploration::arm()
 {
 	publish_vehicle_command(VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0);
 
-	RCLCPP_INFO(this->get_logger(), "Arm Command Sen5");
+	RCLCPP_INFO(this->get_logger(), "Arm Command Sent");
+	transitionTo(DroneState::ARMED);
 }
 
 void ManualExploration::disarm()
 {
 	publish_vehicle_command(VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 0.0);
 	
-	RCLCPP_INFO(this->get_logger(), "Disarm Command Sent");	
+	RCLCPP_INFO(this->get_logger(), "Disarm Command Sent");
+	transitionTo(DroneState::DISARMED);	
 }
 
-void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const
+void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) 
 {
 	RCLCPP_INFO_ONCE(this->get_logger(), "Received first message from OptiTrack!");
 	RCLCPP_INFO_ONCE(this->get_logger(), "Pos: %f, %f, %f", pose_msg->pose.position.x, pose_msg->pose.position.y, pose_msg->pose.position.z);
-	RCLCPP_INFO_ONCE(this->get_logger(), "Quat: %f, %f, %f, %f", pose_msg->pose.orientation.x, pose_msg->pose.orientation.y, pose_msg->pose.orientation.w, pose_msg->pose.orientation.w);
-	
+	RCLCPP_INFO_ONCE(this->get_logger(), "Quat: %f, %f, %f, %f", pose_msg->pose.orientation.x, pose_msg->pose.orientation.y, pose_msg->pose.orientation.z, pose_msg->pose.orientation.w);
+	if(ManualExploration::home_pose_flag){
+		ManualExploration::home_pose_msg->pose.position.x = pose_msg->pose.position.x;
+		ManualExploration::home_pose_msg->pose.position.y = pose_msg->pose.position.y;
+		ManualExploration::home_pose_msg->pose.position.z = pose_msg->pose.position.z;
+		ManualExploration::home_pose_msg->pose.orientation.x = pose_msg->pose.orientation.x;
+		ManualExploration::home_pose_msg->pose.orientation.y = pose_msg->pose.orientation.y;
+		ManualExploration::home_pose_msg->pose.orientation.z = pose_msg->pose.orientation.z;
+		ManualExploration::home_pose_msg->pose.orientation.w = pose_msg->pose.orientation.w;
+		ManualExploration::home_pose_flag = false;
+	}
+
 	VehicleOdometry msg{};
 	msg.pose_frame = msg.POSE_FRAME_FRD;
 	msg.timestamp = uint64_t(pose_msg->header.stamp.sec)*1000000 + uint64_t(pose_msg->header.stamp.nanosec)/1000;
@@ -207,7 +237,7 @@ void ManualExploration::vehicle_status_callback(const VehicleStatus::SharedPtr s
 	if(static_cast<int>(status_msg->arming_state) == 2){
 		RCLCPP_INFO_ONCE(this->get_logger(), "Armed");
 	}
-	if(static_cast<int>(VehicleStatus::NAVIGATION_STATE_OFFBOARD) == 14){
+	if(status_msg->nav_state == VehicleStatus::NAVIGATION_STATE_OFFBOARD ){
 		RCLCPP_INFO_ONCE(this->get_logger(), "Switched to Offboard Mode");
 	}
 }
@@ -233,7 +263,8 @@ void ManualExploration::arming_service_callback(const std::shared_ptr<rpi_interf
 void ManualExploration::takeoff_service_callback(const std::shared_ptr<rpi_interfaces::srv::Takeoff::Request> takeoff_request, std::shared_ptr<rpi_interfaces::srv::Takeoff::Response> takeoff_response)
 {
 	if(takeoff_request->trigger_takeoff == true){
-		publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 4, 2);
+		transitionTo(DroneState::TRAJECTORY);
+		
 
 		takeoff_response->response = true;
 	}
@@ -244,7 +275,7 @@ void ManualExploration::landing_service_callback(const std::shared_ptr<rpi_inter
 std::shared_ptr<rpi_interfaces::srv::Land::Response> landing_response)
 {
 	if(landing_request->trigger_landing == true){
-		publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 4, 6);
+		transitionTo(DroneState::LAND);
 
 		landing_response->response = true;
 	}	
@@ -262,13 +293,34 @@ void ManualExploration::publish_offboard_control_mode()
 	offboard_control_mode_publisher->publish(msg);
 }
 
-void ManualExploration::publish_trajectory_setpoint()
+void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_position, float y_position, float z_position, float yaw)
 {
+	//Values are interpreted in NED Frame of Reference
 	TrajectorySetpoint msg{};
-	msg.position = {0.0, 0.0, -0.30};
-	msg.yaw = 0.0; // (-pi, pi)
-	msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
-	trajectory_setpoint_publisher->publish(msg);
+
+	switch (state)
+	{
+		case DroneState::TRAJECTORY:
+			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Trajectory Setpoint");
+			msg.position = {x_position, y_position, z_position};
+			msg.yaw = yaw; // (-pi, pi)
+			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
+			trajectory_setpoint_publisher->publish(msg);	
+			break;
+		
+		case DroneState::LAND:
+			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Landing Setpoint");
+			// msg.position = {static_cast<float>(ManualExploration::home_pose_msg->pose.position.x), static_cast<float>(ManualExploration::home_pose_msg->pose.position.y), static_cast<float>(ManualExploration::home_pose_msg->pose.position.z)};
+			msg.position = {0.0, 0.0, 0.0};
+			msg.yaw = 0.0;
+			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
+			trajectory_setpoint_publisher->publish(msg);
+			break;
+		default:
+			RCLCPP_INFO(this->get_logger(), "Default case");
+			break;
+	}
+
 }
 
 void ManualExploration::publish_vehicle_command(uint16_t command, float param1, float param2, float param3)
