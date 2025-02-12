@@ -16,11 +16,12 @@ find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rpi_interfaces REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
 add_executable(manual_setpoints src/manual_exploration.cpp)
-ament_target_dependencies(manual_setpoints rclcpp px4_msgs geometry_msgs rpi_interfaces)
+ament_target_dependencies(manual_setpoints rclcpp px4_msgs geometry_msgs rpi_interfaces tf2_ros)
 
 install(TARGETS
 	manual_setpoints

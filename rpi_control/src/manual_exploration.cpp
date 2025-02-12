@@ -3,14 +3,17 @@
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_odometry.hpp>
 #include <px4_msgs/msg/vehicle_status.hpp>
+
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
 
 #include "rpi_interfaces/srv/arming_control.hpp"
 #include "rpi_interfaces/srv/takeoff.hpp"
 #include "rpi_interfaces/srv/land.hpp"
-
 
 #include <chrono>
 #include <iostream>
@@ -37,6 +40,8 @@ class ManualExploration : public rclcpp::Node
 		//Subscribers
 		optitrack_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/quad_pose", qos, std::bind(&ManualExploration::quad_pose_callback, this, std::placeholders::_1));
 		vehicle_status_subscriber = this->create_subscription<VehicleStatus>("/fmu/out/vehicle_status", qos, std::bind(&ManualExploration::vehicle_status_callback, this, std::placeholders::_1));
+		vehicle_pose_subscriber = this->create_subscription<VehicleOdometry>("/fmu/out/vehicle_odometry", qos,
+		std::bind(&ManualExploration::vehicle_pose_callback, this, std::placeholders::_1));
 
 		//Services
 		arming_control_service = this->create_service<rpi_interfaces::srv::ArmingControl>("arming_control", std::bind(&ManualExploration::arming_service_callback, this, std::placeholders::_1, std::placeholders::_2), rclcpp::ServicesQoS());
@@ -82,11 +87,16 @@ class ManualExploration : public rclcpp::Node
 		//Subscribers
 		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr optitrack_pose_subscriber;
 		rclcpp::Subscription<VehicleStatus>::SharedPtr vehicle_status_subscriber;
+		rclcpp::Subscription<VehicleOdometry>::SharedPtr vehicle_pose_subscriber;
 
 		//Services
 		rclcpp::Service<rpi_interfaces::srv::ArmingControl>::SharedPtr arming_control_service;
 		rclcpp::Service<rpi_interfaces::srv::Takeoff>::SharedPtr takeoff_control_service;
 		rclcpp::Service<rpi_interfaces::srv::Land>::SharedPtr landing_control_service;
+
+		//Transform Broadcasters
+		std::unique_ptr<tf2_ros::TransformBroadcaster> mocap_broadcaster;
+		std::unique_ptr<tf2_ros::TransformBroadcaster> px4_broadcaster;
 
 		//common synced timestamped
 		std::atomic<uint64_t> timestamp;
@@ -96,10 +106,10 @@ class ManualExploration : public rclcpp::Node
 
 		void quad_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg) const;
 		void vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const;
+		void vehicle_pose_callback(const VehicleOdometry::SharedPtr pose_msg) const;
 		void arming_service_callback(const std::shared_ptr<rpi_interfaces::srv::ArmingControl::Request> arm_disarm_request, std::shared_ptr<rpi_interfaces::srv::ArmingControl::Response> arm_disarm_response);
 		void takeoff_service_callback(const std::shared_ptr<rpi_interfaces::srv::Takeoff::Request> takeoff_request, std::shared_ptr<rpi_interfaces::srv::Takeoff::Response> takeoff_response);
-		void landing_service_callback(const std::shared_ptr<rpi_interfaces::srv::Land::Request> landing_request, 
-		std::shared_ptr<rpi_interfaces::srv::Land::Response> landing_response);
+		void landing_service_callback(const std::shared_ptr<rpi_interfaces::srv::Land::Request> landing_request, std::shared_ptr<rpi_interfaces::srv::Land::Response> landing_response);
 
 
 		void publish_offboard_control_mode();
@@ -143,6 +153,43 @@ void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped
 
 	visual_odometry_publisher->publish(msg);
 	RCLCPP_INFO_ONCE(this->get_logger(), "Message sent to PX4");
+
+	geometry_msgs::msg::TransformStamped mocap_tf;
+
+	mocap_tf.header.stamp = this->get_clock()->now();
+	mocap_tf.header.frame_id = "world";
+	mocap_tf.child_frame_id = "mocap_pose";
+
+	mocap_tf.transform.translation.x = msg.position[0];
+	mocap_tf.transform.translation.y = msg.position[1];
+	mocap_tf.transform.translation.z = msg.position[2];
+
+	mocap_tf.transform.rotation.x = msg.q[0];
+	mocap_tf.transform.rotation.y = msg.q[1];
+	mocap_tf.transform.rotation.z = msg.q[2];
+	mocap_tf.transform.rotation.w = msg.q[3];
+
+	mocap_broadcaster->sendTransform(mocap_tf);
+}
+
+void ManualExploration::vehicle_pose_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr pose_msg) const
+{
+	geometry_msgs::msg::TransformStamped px4_tf;
+
+	px4_tf.header.stamp = this->get_clock()->now();
+	px4_tf.header.frame_id = "world";
+	px4_tf.child_frame_id = "px4_pose";
+
+	px4_tf.transform.translation.x = pose_msg->position[0];
+	px4_tf.transform.translation.y = pose_msg->position[1];
+	px4_tf.transform.translation.z = pose_msg->position[2];
+
+	px4_tf.transform.rotation.x = pose_msg->q[0];
+	px4_tf.transform.rotation.y = pose_msg->q[1];
+	px4_tf.transform.rotation.z = pose_msg->q[2];
+	px4_tf.transform.rotation.w = pose_msg->q[3];
+
+	px4_broadcaster->sendTransform(px4_tf);
 }
 
 void ManualExploration::vehicle_status_callback(const VehicleStatus::SharedPtr status_msg) const 

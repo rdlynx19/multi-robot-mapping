@@ -1,0 +1,8 @@
+<launch>
+    <node pkg="rpi_control" exec="manual_setpoints">
+    </node>
+
+    <node pkg="rviz2" exec="rviz2">
+    </node>
+
+</launch>
