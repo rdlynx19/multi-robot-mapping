@@ -53,7 +53,7 @@ class ManualExploration : public rclcpp::Node
 				this->publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
 				
 				//Arm the quadrotor
-				// this->arm(); //added service to do this
+//				 this->arm(); //added service to do this
 			}
 			publish_offboard_control_mode();
 			publish_trajectory_setpoint();
@@ -211,8 +211,8 @@ void ManualExploration::publish_offboard_control_mode()
 void ManualExploration::publish_trajectory_setpoint()
 {
 	TrajectorySetpoint msg{};
-	msg.position = {0.0, 0.0, -0.25};
-	msg.yaw = 0; // (-pi, pi)
+	msg.position = {0.0, 0.0, -0.30};
+	msg.yaw = 0.0; // (-pi, pi)
 	msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 	trajectory_setpoint_publisher->publish(msg);
 }
