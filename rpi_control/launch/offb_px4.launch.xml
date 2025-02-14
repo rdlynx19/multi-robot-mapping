@@ -1,8 +1,8 @@
 <launch>
-    <node pkg="rpi_control" exec="manual_setpoints">
-    </node>
-
-    <node pkg="rviz2" exec="rviz2">
-    </node>
+	<node pkg="rpi_control" exec="UdpListener.py">
+	</node>
+	
+    	<node pkg="rpi_control" exec="manual_setpoints">
+    	</node>
 
 </launch>
