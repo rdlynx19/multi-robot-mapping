@@ -73,14 +73,14 @@ class ManualExploration : public rclcpp::Node
 		//Generating Square Trajectory
 		std::pair<double,double> polygonCenter = {0.0, 0.0};
 		int n_sides = 4;
-		double side_length = 0.5;
+		double side_length = 0.8;
 		double circum_radius = side_length / std::sqrt(2);
-		int points_per_line = 20;
+		int points_per_line = 30;
 		double polygon_angle = 45.0;
 
 		square_trajectory = polygonPath(polygonCenter, n_sides, circum_radius, points_per_line, polygon_angle);
 		current_trajectory_index = 0;
-		position_tolerance = 0.1;
+		position_tolerance = 0.3;
 		reached_setpoint = false;
 
 		auto timer_callback = [this]() -> void {
@@ -432,7 +432,7 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 				float distance = static_cast<float>(std::sqrt(dx*dx + dy*dy + dz*dz));
 
 				if(distance <= position_tolerance){
-					RCLCPP_INFO(this->get_logger(), "Reached setpoint %f, %f, %f", static_cast<float>(std::get<0>(point)), static_cast<float>(std::get<1>(point)), z_position);
+					RCLCPP_INFO(this->get_logger(), "Reached setpoint %f, %f, %f", static_cast<float>(std::get<0>(point)), static_cast<float>(std::get<1>(point)), static_cast<float>(std::get<2>(point)));
 
 					current_trajectory_index++;
 					reached_setpoint = true;
