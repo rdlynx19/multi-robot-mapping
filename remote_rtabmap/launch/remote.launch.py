@@ -48,6 +48,10 @@ def generate_launch_description():
         #                 'publish_tf':False}],
         #    remappings=[('imu/data_raw', '/imu')]),
 
+        # Reorient camera frame wrt map frame
+#        Node(package='tf2_ros', executable='static_transform_publisher', output='screen',
+#             arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'oak-d-base-frame', 'oak-d_frame']),
+
         # Relay 
         Node(
             package='rtabmap_util', executable='rgbd_relay', output='screen',
