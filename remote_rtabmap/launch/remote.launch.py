@@ -13,10 +13,12 @@ def generate_launch_description():
     parameters=[{'frame_id':'oak-d-base-frame',
                  'subscribe_rgbd':True,
                  'subscribe_odom_info':True,
-                 'approx_sync':False,
-                 'wait_imu_to_init':True}]
+                 'approx_sync': False,
+                 'wait_imu_to_init':True,
+                 'camera_model': 'OAK-D'}]
 
     remappings=[('imu', '/imu/data'),('rgbd_image', 'rgbd_image_relay')]
+#   remappings=[('rgbd_image', 'rgbd_image_relay')]
 
     return LaunchDescription([
 
@@ -49,7 +51,7 @@ def generate_launch_description():
         # Relay 
         Node(
             package='rtabmap_util', executable='rgbd_relay', output='screen',
-            parameters=[{'compress: True'}],
+            parameters=[{'uncompress: True'}],
             remappings=[('rgbd_image', 'rgbd_image/compressed')]),
 
         # Visual odometry
