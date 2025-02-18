@@ -41,6 +41,8 @@ class ManualExploration : public rclcpp::Node
 		mocap_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     	px4_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
+		home_pose_msg = std::make_unique<geometry_msgs::msg::PoseStamped>();
+		home_pose_flag = true;
 		//Publishers
 		offboard_control_mode_publisher = this->create_publisher<OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
 		trajectory_setpoint_publisher = this->create_publisher<TrajectorySetpoint>("/fmu/in/trajectory_setpoint", 10);
@@ -374,7 +376,7 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 		{
 			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Takeoff Setpoint");
 			msg.position = {x_position, y_position, z_position};
-			msg.yaw = yaw; // (-pi, pi)
+			msg.yaw = -1.57; // (-pi, pi)
 			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 			trajectory_setpoint_publisher->publish(msg);	
 			break;
@@ -406,7 +408,7 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 				else 
 				{
 					msg.position = {static_cast<float>(point.first), static_cast<float>(point.second), z_position};
-					msg.yaw = yaw; //check this is important! Are the setpoints, in body frame or world fixed frame!
+					msg.yaw = -1.57; //check this is important! Are the setpoints, in body frame or world fixed frame!
 					msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 					trajectory_setpoint_publisher->publish(msg);
 					reached_setpoint = false;
@@ -421,9 +423,9 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 		case DroneState::LAND:
 		{
 			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Landing Setpoint");
-			// msg.position = {static_cast<float>(ManualExploration::home_pose_msg->pose.position.x), static_cast<float>(ManualExploration::home_pose_msg->pose.position.y), static_cast<float>(ManualExploration::home_pose_msg->pose.position.z)};
-			msg.position = {0.0, 0.0, 0.0};
-			msg.yaw = 0.0;
+			 msg.position = {static_cast<float>(ManualExploration::home_pose_msg->pose.position.x), static_cast<float>(ManualExploration::home_pose_msg->pose.position.y), static_cast<float>(ManualExploration::home_pose_msg->pose.position.z)};
+//			msg.position = {0.0, 0.0, 0.0};
+			msg.yaw = -1.57;
 			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 			trajectory_setpoint_publisher->publish(msg);
 			break;
