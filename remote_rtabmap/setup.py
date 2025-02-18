@@ -14,6 +14,7 @@ setup(
                                    'launch/rt.launch.py',
                                    'launch/remote.launch.py',
                                    'launch/custom_rgbd.launch.py',
+                                   'launch/stereo_inertial_node.launch.py',
                                    'config/map.rviz',
                                    'urdf/base_descr.urdf.xacro',
                                    'urdf/depthai_descr.urdf.xacro',
