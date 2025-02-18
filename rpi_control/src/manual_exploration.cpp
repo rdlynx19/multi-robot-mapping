@@ -71,17 +71,17 @@ class ManualExploration : public rclcpp::Node
 		offboard_setpoint_counter = 0;
 
 		//Generating Square Trajectory
-		std::pair<double,double> polygonCenter = {0.0, 0.0};
-		int n_sides = 4;
-		double side_length = 0.8;
-		double circum_radius = side_length / std::sqrt(2);
-		int points_per_line = 30;
-		double polygon_angle = 45.0;
+		//std::pair<double,double> polygonCenter = {0.0, 0.0};
+		//int n_sides = 4;
+		//double side_length = 0.8;
+		//double circum_radius = side_length / std::sqrt(2);
+		//int points_per_line = 30;
+		//double polygon_angle = 45.0;
 
-		square_trajectory = polygonPath(polygonCenter, n_sides, circum_radius, points_per_line, polygon_angle);
-		current_trajectory_index = 0;
-		position_tolerance = 0.3;
-		reached_setpoint = false;
+		//square_trajectory = polygonPath(polygonCenter, n_sides, circum_radius, points_per_line, polygon_angle);
+		//current_trajectory_index = 0;
+		//position_tolerance = 0.3;
+		//reached_setpoint = false;
 
 		auto timer_callback = [this]() -> void {
 			if(offboard_setpoint_counter == 20){
@@ -247,17 +247,17 @@ void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped
 		ManualExploration::home_pose_msg->pose.orientation.w = pose_msg->pose.orientation.w;
 		ManualExploration::home_pose_flag = false;
 
-		// std::pair<double,double> polygonCenter = {home_pose_msg->pose.position.x, home_pose_msg->pose.position.y};
-		// int n_sides = 4;
-		// double side_length = 1.5;
-		// double circum_radius = side_length / std::sqrt(2);
-		// int points_per_line = 10;
-		// double polygon_angle = 45.0;
+		std::pair<double,double> polygonCenter = {home_pose_msg->pose.position.x, home_pose_msg->pose.position.y};
+		int n_sides = 4;
+		double side_length = 0.8;
+		double circum_radius = side_length / std::sqrt(2);
+		int points_per_line = 30;
+		double polygon_angle = 45.0;
 
-		// square_trajectory = polygonPath(polygonCenter, n_sides, circum_radius, points_per_line, polygon_angle);
-		// current_trajectory_index = 0;
-		// position_tolerance = 0.3;
-		// reached_setpoint = false;
+		square_trajectory = polygonPath(polygonCenter, n_sides, circum_radius, points_per_line, polygon_angle);
+		current_trajectory_index = 0;
+		position_tolerance = 0.3;
+		reached_setpoint = false;
 
 	}
 
@@ -404,7 +404,7 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 		case DroneState::TAKEOFF:
 		{
 			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Takeoff Setpoint");
-			msg.position = {x_position, y_position, z_position};
+			msg.position = {home_pose_msg->pose.position.x, home_pose_msg->pose.position.y, z_position};
 			msg.yaw = yaw; // (-pi, pi)
 			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 			trajectory_setpoint_publisher->publish(msg);	
