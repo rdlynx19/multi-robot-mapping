@@ -21,7 +21,8 @@ def generate_launch_description():
                  'approx_sync':False,
                  'wait_imu_to_init':True,
                  'topic_queue_size': 20,
-                 'sync_queue_size': 20}]
+                 'sync_queue_size': 20,
+                 'camera_model': 'OAK-D'}]
 
     remappings=[('imu', '/imu/data')]
 
@@ -30,7 +31,7 @@ def generate_launch_description():
         # Launch camera driver
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
-                get_package_share_directory('depthai_examples'), 'launch'),
+                get_package_share_directory('pi_mapping'), 'launch'),
                 '/stereo_inertial_node.launch.py']),
                 launch_arguments={'depth_aligned': 'false',
                                   'enableRviz': 'false',
@@ -52,6 +53,11 @@ def generate_launch_description():
                          'world_frame':'enu', 
                          'publish_tf':False}],
             remappings=[('imu/data_raw', '/imu')]),
+
+        # Publish static tf to reorient imu
+#        Node(package='tf2_ros', executable='static_transform_publisher', output='screen',
+#             arguments=['0','0','0', '0', '0', '0', 'oak-d_frame', 'oak_imu_frame']
+#            )
 
         # Visual odometry
 #        Node(

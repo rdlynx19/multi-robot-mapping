@@ -13,7 +13,7 @@
 	<xacro:arg name="cam_yaw" default="0.0" />
 	<xacro:arg name="rs_compat" default="false" />
 
-	<xacro:include filename="$(find remote_rtabmap)/urdf/include/depthai_macro.urdf.xacro" />
+	<xacro:include filename="$(find pi_mapping)/urdf/include/depthai_macro.urdf.xacro" />
 
 	<link name="$(arg parent_frame)" />
 	<xacro:depthai_camera camera_name="$(arg camera_name)" parent="$(arg parent_frame)"
