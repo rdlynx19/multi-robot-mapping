@@ -42,7 +42,7 @@ class UdpListener(Node):
             # Receive data from UDP socket
             data, addr = self.udp_socket.recvfrom(1024)  # Buffer size of 1024 bytes
             message = data.decode('utf-8')
-            self.get_logger().debug(f"Received message from {addr}: {message}")
+#            self.get_logger().info(f"Received message from {addr}: {message}")
 
             # Parse the received message
             message_parts = message.split(", ")

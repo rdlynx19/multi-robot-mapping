@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'remote_rtabmap'
+package_name = 'pi_mapping'
 
 setup(
     name=package_name,
@@ -10,22 +10,21 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml',
-                                   'launch/remote.launch.py',
-                                   'launch/rt.launch.py',
-                                   'launch/remote.launch.py',
-                                   'launch/custom_rgbd.launch.py',
-                                   'config/map.rviz',
+                                   'launch/depthai.launch.py',
+                                   'launch/stereo_inertial_node.launch.py',
+                                   'launch/urdf_launch.py',
                                    'urdf/base_descr.urdf.xacro',
                                    'urdf/depthai_descr.urdf.xacro',
                                    'urdf/include/base_macro.urdf.xacro',
-                                   'urdf/include/depthai_macro.urdf.xacro']),
+                                   'urdf/include/depthai_macro.urdf.xacro',
+                                   ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='redhairedlynx',
-    maintainer_email='pushkardave.vnit@gmail.com',
+    maintainer='itadori',
+    maintainer_email='davepushkar02@gmail.com',
     description='TODO: Package description',
-    license='MIT',
+    license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [

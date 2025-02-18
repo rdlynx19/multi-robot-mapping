@@ -17,6 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ArmingControl.srv"
   "srv/Takeoff.srv"
   "srv/Land.srv"
+  "srv/Trajectory.srv"
   DEPENDENCIES std_msgs
 )
 
