@@ -35,7 +35,8 @@ def generate_launch_description():
                 '/stereo_inertial_node.launch.py']),
                 launch_arguments={'depth_aligned': 'false',
                                   'enableRviz': 'false',
-                                  'monoResolution': '400p'}.items(),
+                                  'monoResolution': '400p',
+                                  'stereo_fps': '30'}.items(),
         ),
 
         # Sync right/depth/camera_info together
