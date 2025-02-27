@@ -71,16 +71,16 @@ class ManualExploration : public rclcpp::Node
 		offboard_setpoint_counter = 0;
 
 		//Generating Square Trajectory
-		std::pair<double, double> polygonCenter = {0.0, 0.0};
+		std::pair<double,double> polygonCenter = {0.0, 0.0};
 		int n_sides = 4;
 		double side_length = 0.5;
 		double circum_radius = side_length / std::sqrt(2);
-		int points_per_line = 3;
+		int points_per_line = 20;
 		double polygon_angle = 45.0;
 
 		square_trajectory = polygonPath(polygonCenter, n_sides, circum_radius, points_per_line, polygon_angle);
 		current_trajectory_index = 0;
-		position_tolerance = 0.3;
+		position_tolerance = 0.1;
 		reached_setpoint = false;
 
 		auto timer_callback = [this]() -> void {
@@ -134,7 +134,7 @@ class ManualExploration : public rclcpp::Node
 		geometry_msgs::msg::PoseStamped::UniquePtr home_pose_msg;
 		bool home_pose_flag = true;
 		DroneState current_state = DroneState::DISARMED;
-		std::vector<std::pair<double, double>> square_trajectory;
+		std::vector<std::tuple<double, double, double>> square_trajectory;
 		uint64_t current_trajectory_index;
 		float position_tolerance;
 		bool reached_setpoint;
@@ -159,7 +159,7 @@ class ManualExploration : public rclcpp::Node
 		void publish_trajectory_setpoint(DroneState state = DroneState::DISARMED, float x_position = 0.0, float y_position = 0.0, float z_position = -0.3, float yaw = 0.0);
 		void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0, float param3 = 0.0);
 		void transitionTo(DroneState new_state);
-		std::vector<std::pair< double, double>> polygonPath(const std::pair<double, double>& polygon_center, int n_sides, double circum_radius, int points_per_line, double polygon_angle);	
+		std::vector<std::tuple< double, double, double>> polygonPath(const std::pair<double, double>& polygon_center, int n_sides, double circum_radius, int points_per_line, double polygon_angle);	
 };
 
 void ManualExploration::transitionTo(DroneState new_state)
@@ -168,9 +168,9 @@ void ManualExploration::transitionTo(DroneState new_state)
     current_state = new_state;
 }
 
-std::vector<std::pair<double, double>> ManualExploration::polygonPath(const std::pair<double, double>& polygon_center, int n_sides, double circum_radius, int points_per_line, double polygon_angle)
+std::vector<std::tuple<double, double, double>> ManualExploration::polygonPath(const std::pair<double, double>& polygon_center, int n_sides, double circum_radius, int points_per_line, double polygon_angle)
 {
-	double angle_rad = polygon_angle * M_PI /189.0;
+	double angle_rad = polygon_angle * M_PI/180.0;
 
 	double theta_increment = 2 * M_PI / n_sides;
 
@@ -182,7 +182,7 @@ std::vector<std::pair<double, double>> ManualExploration::polygonPath(const std:
 		vertices.emplace_back(x,y);
 	}
 
-	std::vector<std::pair<double, double>> path_coordinates;
+	std::vector<std::tuple<double, double, double>> path_coordinates;
 	for(int i = 0; i < n_sides; ++i){
 		double x_start = vertices[i].first;
 		double y_start = vertices[i].second;
@@ -193,7 +193,9 @@ std::vector<std::pair<double, double>> ManualExploration::polygonPath(const std:
 			double t = static_cast<double> (j) / (points_per_line + 1);
 			double x_interp = x_start + t * (x_end - x_start);
 			double y_interp = y_start + t * (y_end - y_start);
-			path_coordinates.emplace_back(x_interp, y_interp);
+			//yaw
+			double yaw = -M_PI + (2 * M_PI * (i * points_per_line + j)) / (n_sides * points_per_line);
+			path_coordinates.emplace_back(x_interp, y_interp, yaw);
 		}
 	}
 
@@ -230,6 +232,19 @@ void ManualExploration::quad_pose_callback(const geometry_msgs::msg::PoseStamped
 		ManualExploration::home_pose_msg->pose.orientation.z = pose_msg->pose.orientation.z;
 		ManualExploration::home_pose_msg->pose.orientation.w = pose_msg->pose.orientation.w;
 		ManualExploration::home_pose_flag = false;
+
+		// std::pair<double,double> polygonCenter = {home_pose_msg->pose.position.x, home_pose_msg->pose.position.y};
+		// int n_sides = 4;
+		// double side_length = 1.5;
+		// double circum_radius = side_length / std::sqrt(2);
+		// int points_per_line = 10;
+		// double polygon_angle = 45.0;
+
+		// square_trajectory = polygonPath(polygonCenter, n_sides, circum_radius, points_per_line, polygon_angle);
+		// current_trajectory_index = 0;
+		// position_tolerance = 0.3;
+		// reached_setpoint = false;
+
 	}
 
 	VehicleOdometry msg{};
@@ -376,7 +391,7 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 		{
 			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Takeoff Setpoint");
 			msg.position = {x_position, y_position, z_position};
-			msg.yaw = -1.57; // (-pi, pi)
+			msg.yaw = -M_PI; // (-pi, pi)
 			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 			trajectory_setpoint_publisher->publish(msg);	
 			break;
@@ -384,7 +399,10 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 		case DroneState::TRAJECTORY:
 		{
 			// RCLCPP_INFO(this->get_logger(), "Sending Trajectory Setpoint");
-				
+			if(square_trajectory.empty()){
+				RCLCPP_ERROR(this->get_logger(), "Trajectory is empty. Generate the trajectory first!");
+				break;
+			}
 			auto point = square_trajectory[current_trajectory_index];
 
 			if(current_trajectory_index < square_trajectory.size()){
@@ -393,22 +411,22 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 				float current_y = current_odometry_pose->position[1];
 				float current_z = current_odometry_pose->position[2];
 
-				float dx = static_cast<float>(point.first) - current_x;
-				float dy = static_cast<float>(point.second) - current_y;
+				float dx = static_cast<float>(std::get<0>(point)) - current_x;
+				float dy = static_cast<float>(std::get<1>(point)) - current_y;
 				float dz = z_position - current_z;
 
 				float distance = static_cast<float>(std::sqrt(dx*dx + dy*dy + dz*dz));
 
 				if(distance <= position_tolerance){
-					RCLCPP_INFO(this->get_logger(), "Reached setpoint %f, %f, %f", static_cast<float>(point.first), static_cast<float>(point.second), z_position);
+					RCLCPP_INFO(this->get_logger(), "Reached setpoint %f, %f, %f", static_cast<float>(std::get<0>(point)), static_cast<float>(std::get<1>(point)), z_position);
 
 					current_trajectory_index++;
 					reached_setpoint = true;
 				}
 				else 
 				{
-					msg.position = {static_cast<float>(point.first), static_cast<float>(point.second), z_position};
-					msg.yaw = -1.57; //check this is important! Are the setpoints, in body frame or world fixed frame!
+					msg.position = {static_cast<float>(std::get<0>(point)), static_cast<float>(std::get<1>(point)), z_position};
+					msg.yaw = std::get<2>(point); //check this is important! Are the setpoints, in body frame or world fixed frame!
 					msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 					trajectory_setpoint_publisher->publish(msg);
 					reached_setpoint = false;
@@ -425,7 +443,7 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Landing Setpoint");
 			 msg.position = {static_cast<float>(ManualExploration::home_pose_msg->pose.position.x), static_cast<float>(ManualExploration::home_pose_msg->pose.position.y), static_cast<float>(ManualExploration::home_pose_msg->pose.position.z)};
 //			msg.position = {0.0, 0.0, 0.0};
-			msg.yaw = -1.57;
+			msg.yaw = yaw;
 			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 			trajectory_setpoint_publisher->publish(msg);
 			break;
