@@ -10,9 +10,7 @@ from launch.actions import (
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import LoadComposableNodes, Node
-from launch_ros.descriptions import ComposableNode
-
+from launch_ros.actions import Node
 
 def launch_setup(context, *args, **kwargs):
     name = LaunchConfiguration("name").perform(context)
@@ -26,7 +24,7 @@ def launch_setup(context, *args, **kwargs):
             "subscribe_depth": True,
             "subscribe_odom_info": True,
             "wait_imu_to_init": True,
-            "approx_sync": True,
+            "approx_sync": False,
             "Rtabmap/DetectionRate": "3.5",
         }
     ]
@@ -35,7 +33,7 @@ def launch_setup(context, *args, **kwargs):
         ("rgb/image", name + "/rgb/image_rect"),
         ("rgb/camera_info", name + "/rgb/camera_info"),
         ("depth/image", name + "/stereo/image_raw"),
-        ("imu", name + "/imu/data"),
+        ("/imu", "oak/imu/data"),
     ]
 
     return [
@@ -45,29 +43,21 @@ def launch_setup(context, *args, **kwargs):
             ),
             launch_arguments={"name": name, "params_file": params_file}.items(),
         ),
-        LoadComposableNodes(
-            target_container=name + "_container",
-            composable_node_descriptions=[
-                ComposableNode(
-                    package="rtabmap_odom",
-                    plugin="rtabmap_odom::RGBDOdometry",
-                    name="rgbd_odometry",
-                    parameters=parameters,
-                    remappings=remappings,
-                ),
-            ],
+        Node(
+            package="rtabmap_odom",
+            executable="rgbd_odometry",
+            name="rgbd_odometry",
+            output="screen",
+            parameters=parameters,
+            remappings=remappings,
         ),
-        LoadComposableNodes(
-            target_container=name + "_container",
-            composable_node_descriptions=[
-                ComposableNode(
-                    package="rtabmap_slam",
-                    plugin="rtabmap_slam::CoreWrapper",
-                    name="rtabmap",
-                    parameters=parameters,
-                    remappings=remappings,
-                ),
-            ],
+        Node(
+            package="rtabmap_slam",
+            executable="rtabmap",
+            name="rtabmap",
+            output="screen",
+            parameters=parameters,
+            remappings=remappings,
         ),
         Node(
             package="rtabmap_viz",
@@ -77,7 +67,6 @@ def launch_setup(context, *args, **kwargs):
             remappings=remappings,
         ),
     ]
-
 
 def generate_launch_description():
     depthai_prefix = get_package_share_directory("depthai_ros_driver")
@@ -92,3 +81,4 @@ def generate_launch_description():
     return LaunchDescription(
         declared_arguments + [OpaqueFunction(function=launch_setup)]
     )
+
