@@ -168,38 +168,52 @@ void ManualExploration::transitionTo(DroneState new_state)
     current_state = new_state;
 }
 
-std::vector<std::tuple<double, double, double>> ManualExploration::polygonPath(const std::pair<double, double>& polygon_center, int n_sides, double circum_radius, int points_per_line, double polygon_angle)
+std::vector<std::tuple<double, double, double>> ManualExploration::polygonPath(
+    const std::pair<double, double>& polygon_center, 
+    int n_sides, 
+    double circum_radius, 
+    int points_per_line, 
+    double polygon_angle)
 {
-	double angle_rad = polygon_angle * M_PI/180.0;
+    double angle_rad = polygon_angle * M_PI / 180.0;
 
-	double theta_increment = 2 * M_PI / n_sides;
+    double theta_increment = 2 * M_PI / n_sides;
 
-	std::vector<std::pair<double, double>> vertices;
-	for(int i = 0; i <= n_sides; ++i) {
-		double theta = i * theta_increment + angle_rad;
-		double x = circum_radius * std::cos(theta) + polygon_center.first;
-		double y = circum_radius * std::sin(theta) + polygon_center.second;
-		vertices.emplace_back(x,y);
-	}
+    // Generate vertices of the polygon
+    std::vector<std::pair<double, double>> vertices;
+    for (int i = 0; i <= n_sides; ++i) {
+        double theta = i * theta_increment + angle_rad;
+        double x = circum_radius * std::cos(theta) + polygon_center.first;
+        double y = circum_radius * std::sin(theta) + polygon_center.second;
+        vertices.emplace_back(x, y);
+    }
 
-	std::vector<std::tuple<double, double, double>> path_coordinates;
-	for(int i = 0; i < n_sides; ++i){
-		double x_start = vertices[i].first;
-		double y_start = vertices[i].second;
-		double x_end = vertices[i+1].first;
-		double y_end = vertices[i+1].second;
+    // Generate path coordinates with yaw
+    std::vector<std::tuple<double, double, double>> path_coordinates;
+    for (int i = 0; i < n_sides; ++i) {
+        double x_start = vertices[i].first;
+        double y_start = vertices[i].second;
+        double x_end = vertices[i + 1].first;
+        double y_end = vertices[i + 1].second;
 
-		for(int j = 0; j < points_per_line; ++j){
-			double t = static_cast<double> (j) / (points_per_line + 1);
-			double x_interp = x_start + t * (x_end - x_start);
-			double y_interp = y_start + t * (y_end - y_start);
-			//yaw
-			double yaw = -M_PI + (2 * M_PI * (i * points_per_line + j)) / (n_sides * points_per_line);
-			path_coordinates.emplace_back(x_interp, y_interp, yaw);
-		}
-	}
+        for (int j = 0; j < points_per_line; ++j) {
+            double t = static_cast<double>(j) / (points_per_line + 1);
+            double x_interp = x_start + t * (x_end - x_start);
+            double y_interp = y_start + t * (y_end - y_start);
 
-	return path_coordinates;
+            // Calculate yaw (starts at 0 and completes a full rotation)
+            double yaw = (2 * M_PI * (i * points_per_line + j)) / (n_sides * points_per_line);
+
+            // Normalize yaw to the range [-π, π]
+            if (yaw > M_PI) {
+                yaw -= 2 * M_PI;
+            }
+
+            path_coordinates.emplace_back(x_interp, y_interp, yaw);
+        }
+    }
+
+    return path_coordinates;
 }
 
 void ManualExploration::arm()
@@ -391,7 +405,7 @@ void ManualExploration::publish_trajectory_setpoint(DroneState state, float x_po
 		{
 			RCLCPP_INFO_ONCE(this->get_logger(), "Sending Takeoff Setpoint");
 			msg.position = {x_position, y_position, z_position};
-			msg.yaw = -M_PI; // (-pi, pi)
+			msg.yaw = yaw; // (-pi, pi)
 			msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 			trajectory_setpoint_publisher->publish(msg);	
 			break;
