@@ -1,0 +1,9 @@
+<launch>
+
+<node pkg="go1_exploration" exec="frontierExploration">
+</node>
+
+<node pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share go1_exploration)/goal.rviz">
+</node>
+
+</launch>
