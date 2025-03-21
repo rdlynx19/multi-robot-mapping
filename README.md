@@ -1,7 +1,7 @@
 # Collaborative Mapping using a Quadrotor and Quadruped
 Author: Pushkar Dave\
 This repository contains the packages, scripts, and the STL files for my MSR Winter Project\
-More details about this project can be found on my website: [Pushkar's Portfolio](pushkardave.com)
+More details about this project can be found on my website: [Pushkar's Portfolio](www.pushkardave.com/multi-robot-mapping)
 
 ## Package Descriptions
 - `pi_mapping` : This package runs on the Raspberry Pi to launch the Oak-D camera nodes, the IMU node, and sync the image topics using rtabmap_sync
